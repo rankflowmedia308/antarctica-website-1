@@ -11,59 +11,8 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 HEADER="$ROOT/components/header.html"
 FOOTER="$ROOT/components/footer.html"
 
-# Helper: assemble a page
-# assemble <output-file> <title> <meta-desc> <canonical> <extra-head> <active-nav> <content-file> [ranking-css]
-assemble() {
-  local OUT="$1"
-  local TITLE="$2"
-  local DESC="$3"
-  local CANONICAL="$4"
-  local EXTRA_HEAD="$5"
-  local ACTIVE_NAV="$6"
-  local CONTENT="$7"
-  local EXTRA_CSS="${8:-}"
-
-  # Inject active class into nav link
-  local HEADER_HTML
-  HEADER_HTML=$(sed "s|href=\"$ACTIVE_NAV\"|href=\"$ACTIVE_NAV\" class=\"active\"|" "$HEADER")
-
-  cat > "$OUT" <<HTMLEOF
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$TITLE</title>
-  <meta name="description" content="$DESC">
-  <link rel="canonical" href="$CANONICAL">
-  <!-- Open Graph -->
-  <meta property="og:type"        content="article">
-  <meta property="og:title"       content="$TITLE">
-  <meta property="og:description" content="$DESC">
-  <meta property="og:url"         content="$CANONICAL">
-  <!-- Preconnect -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Styles -->
-  <link rel="stylesheet" href="/css/global.css">
-$([ -n "$EXTRA_CSS" ] && echo "  <link rel=\"stylesheet\" href=\"$EXTRA_CSS\">")
-  $EXTRA_HEAD
-</head>
-<body>
-$(cat "$HEADER_HTML_FILE")
-<main>
-$(cat "$CONTENT")
-</main>
-$(cat "$FOOTER")
-  <script src="/js/nav.js" defer></script>
-</body>
-</html>
-HTMLEOF
-  echo "  Built: $OUT"
-}
-
-# We use a temp file approach for the header with active class injection
+# build_page <out> <title> <desc> <canonical> <extra-head> <active-nav> <content> [extra-css] [depth]
+# depth: 0 = root (index.html), 1 = one level deep (about/index.html, etc.)
 build_page() {
   local OUT="$1"
   local TITLE="$2"
@@ -73,11 +22,41 @@ build_page() {
   local ACTIVE_NAV="$6"
   local CONTENT="$7"
   local EXTRA_CSS="${8:-}"
+  local DEPTH="${9:-0}"
 
-  # Temp header with active nav
+  # Base prefix for relative paths
+  local BASE=""
+  local ROOT_HREF="./"
+  if [ "$DEPTH" = "1" ]; then
+    BASE="../"
+    ROOT_HREF="../"
+  fi
+
+  # Temp header: inject active class, then convert absolute paths to relative
   local TMP_HEADER
   TMP_HEADER=$(mktemp)
-  sed "s|href=\"$ACTIVE_NAV\"|href=\"$ACTIVE_NAV\" class=\"active\"|g" "$HEADER" > "$TMP_HEADER"
+  sed \
+    -e "s|href=\"$ACTIVE_NAV\"|href=\"$ACTIVE_NAV\" class=\"active\"|g" \
+    -e "s|href=\"/\"|href=\"${ROOT_HREF}\"|g" \
+    -e "s|href=\"/\([^\"]*\)\"|href=\"${BASE}\1\"|g" \
+    -e "s|src=\"/\([^\"]*\)\"|src=\"${BASE}\1\"|g" \
+    "$HEADER" > "$TMP_HEADER"
+
+  # Temp footer: convert absolute paths to relative
+  local TMP_FOOTER
+  TMP_FOOTER=$(mktemp)
+  sed \
+    -e "s|href=\"/\"|href=\"${ROOT_HREF}\"|g" \
+    -e "s|href=\"/\([^\"]*\)\"|href=\"${BASE}\1\"|g" \
+    "$FOOTER" > "$TMP_FOOTER"
+
+  # Temp content: convert absolute image/link paths to relative
+  local TMP_CONTENT
+  TMP_CONTENT=$(mktemp)
+  sed \
+    -e "s|src=\"/\([^\"]*\)\"|src=\"${BASE}\1\"|g" \
+    -e "s|href=\"/\([^\"]*\)\"|href=\"${BASE}\1\"|g" \
+    "$CONTENT" > "$TMP_CONTENT"
 
   {
     echo '<!DOCTYPE html>'
@@ -98,9 +77,9 @@ build_page() {
     echo '  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
     echo '  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">'
     echo '  <!-- Styles -->'
-    echo '  <link rel="stylesheet" href="/css/global.css">'
+    echo "  <link rel=\"stylesheet\" href=\"${BASE}css/global.css\">"
     if [ -n "$EXTRA_CSS" ]; then
-      echo "  <link rel=\"stylesheet\" href=\"$EXTRA_CSS\">"
+      echo "  <link rel=\"stylesheet\" href=\"${BASE}css/ranking.css\">"
     fi
     if [ -n "$EXTRA_HEAD" ]; then
       echo "$EXTRA_HEAD"
@@ -109,15 +88,15 @@ build_page() {
     echo '<body>'
     cat "$TMP_HEADER"
     echo '<main>'
-    cat "$CONTENT"
+    cat "$TMP_CONTENT"
     echo '</main>'
-    cat "$FOOTER"
-    echo '  <script src="/js/nav.js" defer></script>'
+    cat "$TMP_FOOTER"
+    echo "  <script src=\"${BASE}js/nav.js\" defer></script>"
     echo '</body>'
     echo '</html>'
   } > "$OUT"
 
-  rm -f "$TMP_HEADER"
+  rm -f "$TMP_HEADER" "$TMP_FOOTER" "$TMP_CONTENT"
   echo "  Built: $OUT"
 }
 
@@ -205,7 +184,7 @@ JSONLD
 
 echo "Building pages..."
 
-# --- index.html ---
+# --- index.html (depth=0) ---
 build_page \
   "$ROOT/index.html" \
   "Best Antarctica Cruise Companies 2026: 10 Top Expedition Operators Ranked" \
@@ -214,9 +193,10 @@ build_page \
   "$INDEX_JSONLD" \
   "/" \
   "$ROOT/content/main-ranking.html" \
-  "/css/ranking.css"
+  "yes" \
+  "0"
 
-# --- about/index.html ---
+# --- about/index.html (depth=1) ---
 mkdir -p "$ROOT/about"
 build_page \
   "$ROOT/about/index.html" \
@@ -225,9 +205,11 @@ build_page \
   "https://best-antarctica-cruise-companies.com/about/" \
   "" \
   "/about/" \
-  "$ROOT/content/about.html"
+  "$ROOT/content/about.html" \
+  "" \
+  "1"
 
-# --- editorial-policy/index.html ---
+# --- editorial-policy/index.html (depth=1) ---
 mkdir -p "$ROOT/editorial-policy"
 build_page \
   "$ROOT/editorial-policy/index.html" \
@@ -236,9 +218,11 @@ build_page \
   "https://best-antarctica-cruise-companies.com/editorial-policy/" \
   "" \
   "/editorial-policy/" \
-  "$ROOT/content/editorial-policy.html"
+  "$ROOT/content/editorial-policy.html" \
+  "" \
+  "1"
 
-# --- contact/index.html ---
+# --- contact/index.html (depth=1) ---
 mkdir -p "$ROOT/contact"
 build_page \
   "$ROOT/contact/index.html" \
@@ -247,9 +231,11 @@ build_page \
   "https://best-antarctica-cruise-companies.com/contact/" \
   "" \
   "/contact/" \
-  "$ROOT/content/contact.html"
+  "$ROOT/content/contact.html" \
+  "" \
+  "1"
 
-# --- cookie-policy/index.html ---
+# --- cookie-policy/index.html (depth=1) ---
 mkdir -p "$ROOT/cookie-policy"
 build_page \
   "$ROOT/cookie-policy/index.html" \
@@ -258,7 +244,9 @@ build_page \
   "https://best-antarctica-cruise-companies.com/cookie-policy/" \
   "" \
   "/cookie-policy/" \
-  "$ROOT/content/cookie-policy.html"
+  "$ROOT/content/cookie-policy.html" \
+  "" \
+  "1"
 
 echo ""
 echo "Done! Files built:"
