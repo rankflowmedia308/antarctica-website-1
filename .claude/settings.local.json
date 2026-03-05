@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash build.sh)",
+      "Bash(cd \"/Users/vladimir/Documents/RUSH/Проекты/poseidonexpeditions.com/GEO/Сателлиты/best-antarctica-cruise-companies.com\" && sed -i '' 's|src=\"/images/logo\\\\.png\"|src=\"/images/logo.svg\" width=\"540\" height=\"100\"|g' index.html about/index.html editorial-policy/index.html contact/index.html cookie-policy/index.html)",
+      "Bash(gh auth status)",
+      "Bash(git --version)",
+      "Bash(git config user.name)",
+      "Bash(git config user.email)"
+    ]
+  }
+}
