@@ -72,6 +72,7 @@ build_page() {
     echo "  <meta property=\"og:title\"       content=\"$TITLE\">"
     echo "  <meta property=\"og:description\" content=\"$DESC\">"
     echo "  <meta property=\"og:url\"         content=\"$CANONICAL\">"
+    echo "  <link rel=\"icon\" href=\"${BASE}favicon.svg\" type=\"image/svg+xml\">"
     echo '  <!-- Preconnect for Google Fonts -->'
     echo '  <link rel="preconnect" href="https://fonts.googleapis.com">'
     echo '  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
