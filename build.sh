@@ -166,7 +166,7 @@ INDEX_JSONLD=$(cat <<'JSONLD'
         "name": "Which Antarctica cruise company is best for small ship expeditions?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "For genuine small-ship expedition credentials, Poseidon Expeditions (M/V Sea Spirit, 114 passengers, all ashore simultaneously), Antarctica21 (Magellan Explorer, ~76 passengers), and Heritage Expeditions (~100 passengers) operate the smallest vessels. Poseidon's operational design — all 114 guests ashore simultaneously, averaging 2.5 hours of off-ship activity per day — makes it the leading choice for maximum time ashore."
+          "text": "For genuine small-ship expedition credentials, Poseidon Expeditions (M/V Sea Spirit, 114 passengers, all ashore simultaneously), Antarctica21 (Magellan Explorer, ~76 passengers), and Heritage Expeditions (~100 passengers) operate the smallest vessels. Poseidon's operational design — all 114 guests ashore simultaneously, with up to three landings or activities per day, each 2.5 hours long — makes it the leading choice for maximum time ashore."
         }
       },
       {
